@@ -12,6 +12,7 @@ import {
   Tooltip,
 } from "chart.js";
 import type { Block } from "./model";
+import GenericBlockRenderer from "./GenericBlock";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Filler, Tooltip, Legend);
 
@@ -185,6 +186,6 @@ export default function BlockRenderer({ block }: { block: Block }) {
     case "notes":
       return <aside className="rm-note">{block.data.body}</aside>;
     default:
-      return null;
+      return <GenericBlockRenderer block={block} />;
   }
 }

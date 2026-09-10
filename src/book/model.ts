@@ -2,7 +2,7 @@
 /*                               types                                */
 /* ------------------------------------------------------------------ */
 
-export type BlockType =
+export type CoreBlockType =
   | "heading"
   | "text"
   | "kicker"
@@ -15,6 +15,48 @@ export type BlockType =
   | "notes"
   | "cover"
   | "divider";
+
+/** Elementor-style extended elements — data is loosely shaped per element. */
+export type GenericBlockType =
+  // Layout
+  | "flexContainer"
+  | "innerSection"
+  // Basic
+  | "button"
+  | "spacer"
+  | "gmap"
+  | "youtube"
+  | "icon"
+  // General
+  | "imageBox"
+  | "iconBox"
+  | "imageCarousel"
+  | "gallery"
+  | "iconList"
+  | "counter"
+  | "testimonial"
+  | "tabs"
+  | "accordion"
+  | "toggle"
+  | "socialIcons"
+  | "sidebar"
+  | "textPath"
+  | "form"
+  | "cta"
+  | "flipBox"
+  | "priceList"
+  | "priceTable"
+  | "shareButtons"
+  | "animatedHeadline"
+  | "mediaCarousel"
+  | "testimonialCarousel"
+  | "reviews"
+  | "facebook"
+  | "lottie"
+  | "countdown"
+  | "iframe";
+
+export type BlockType = CoreBlockType | GenericBlockType;
 
 export type MediaFit = "cover" | "contain" | "natural";
 
@@ -52,6 +94,10 @@ export type CoverBlock = BlockBase<
 >;
 export type DividerBlock = BlockBase<"divider", { label?: string }>;
 
+/** All extended elements share a loose data bag. */
+export type GenericData = Record<string, unknown>;
+export type GenericBlock = BlockBase<GenericBlockType, GenericData>;
+
 export type Block =
   | TextBlock
   | HeadingBlock
@@ -64,7 +110,8 @@ export type Block =
   | NumbersBlock
   | NotesBlock
   | CoverBlock
-  | DividerBlock;
+  | DividerBlock
+  | GenericBlock;
 
 export type PageTone = "cover" | "paper" | "dark" | "closing";
 
@@ -296,6 +343,43 @@ export const blockLabel: Record<BlockType, string> = {
   notes: "Margin note",
   cover: "Cover",
   divider: "Divider",
+  // Layout
+  flexContainer: "Flexbox Container",
+  innerSection: "Inner Section",
+  // Basic
+  button: "Button",
+  spacer: "Spacer",
+  gmap: "Google Maps",
+  youtube: "YouTube",
+  icon: "Icon",
+  // General
+  imageBox: "Image Box",
+  iconBox: "Icon Box",
+  imageCarousel: "Image Carousel",
+  gallery: "Basic Gallery",
+  iconList: "Icon List",
+  counter: "Counter",
+  testimonial: "Testimonial",
+  tabs: "Tabs",
+  accordion: "Accordion",
+  toggle: "Toggle",
+  socialIcons: "Social Icons",
+  sidebar: "Sidebar",
+  textPath: "Text Path",
+  form: "Form",
+  cta: "Call to Action",
+  flipBox: "Flip Box",
+  priceList: "Price List",
+  priceTable: "Price Table",
+  shareButtons: "Share Buttons",
+  animatedHeadline: "Animated Headline",
+  mediaCarousel: "Media Carousel",
+  testimonialCarousel: "Testimonial Carousel",
+  reviews: "Reviews",
+  facebook: "Facebook Page",
+  lottie: "Lottie Animation",
+  countdown: "Countdown Timer",
+  iframe: "Web iFrame",
 };
 
 export const blockIcon: Record<BlockType, string> = {
@@ -311,29 +395,109 @@ export const blockIcon: Record<BlockType, string> = {
   notes: "✎",
   cover: "▣",
   divider: "·",
+  flexContainer: "▤",
+  innerSection: "⬓",
+  button: "◉",
+  spacer: "↕",
+  gmap: "📍",
+  youtube: "►",
+  icon: "★",
+  imageBox: "🖼",
+  iconBox: "◈",
+  imageCarousel: "❰❱",
+  gallery: "▦",
+  iconList: "☰",
+  counter: "#",
+  testimonial: "❝",
+  tabs: "⊟",
+  accordion: "≡",
+  toggle: "⊕",
+  socialIcons: "@",
+  sidebar: "▥",
+  textPath: "∿",
+  form: "✉",
+  cta: "❗",
+  flipBox: "⇄",
+  priceList: "$",
+  priceTable: "▤$",
+  shareButtons: "⤴",
+  animatedHeadline: "✦",
+  mediaCarousel: "▷▷",
+  testimonialCarousel: "❝▷",
+  reviews: "★★",
+  facebook: "f",
+  lottie: "◐",
+  countdown: "⏱",
+  iframe: "❒",
 };
+
+export type BlockCategory = "Layout" | "Basic" | "General" | "Editorial";
 
 export type BlockTemplate = {
   type: BlockType;
   label: string;
   hint: string;
   rich: boolean;
+  category: BlockCategory;
 };
 
 export const templates: BlockTemplate[] = [
-  { type: "cover", label: "Cover", hint: "Title page block", rich: false },
-  { type: "heading", label: "Heading", hint: "Large title + optional subtitle", rich: false },
-  { type: "kicker", label: "Kicker", hint: "Small uppercase label", rich: false },
-  { type: "text", label: "Text", hint: "Body copy, rich-formatted", rich: true },
-  { type: "quote", label: "Quote", hint: "Pull quote with attribution", rich: false },
-  { type: "image", label: "Image", hint: "Photo / artwork", rich: true },
-  { type: "video", label: "Video", hint: "Embed or file", rich: true },
-  { type: "chart", label: "Chart", hint: "Line or bar chart", rich: false },
-  { type: "numbers", label: "Stats", hint: "Row of key figures", rich: false },
-  { type: "notes", label: "Note", hint: "Margin / field note", rich: false },
-  { type: "rule", label: "Rule", hint: "Foil divider line", rich: false },
-  { type: "divider", label: "Divider", hint: "Section break", rich: false },
+  /* Layout Elements */
+  { type: "flexContainer", label: "Flex Container", hint: "Flexbox layout container", rich: false, category: "Layout" },
+  { type: "innerSection", label: "Inner Section", hint: "Legacy column section", rich: false, category: "Layout" },
+
+  /* Basic Elements */
+  { type: "heading", label: "Heading", hint: "Large title + optional subtitle", rich: false, category: "Basic" },
+  { type: "image", label: "Image", hint: "Photo / artwork", rich: true, category: "Basic" },
+  { type: "text", label: "Text Editor", hint: "Body copy", rich: true, category: "Basic" },
+  { type: "video", label: "Video", hint: "Embed or file", rich: true, category: "Basic" },
+  { type: "button", label: "Button", hint: "Call-to-action button", rich: false, category: "Basic" },
+  { type: "divider", label: "Divider", hint: "Section break", rich: false, category: "Basic" },
+  { type: "spacer", label: "Spacer", hint: "Adjustable vertical gap", rich: false, category: "Basic" },
+  { type: "gmap", label: "Google Maps", hint: "Embedded map", rich: false, category: "Basic" },
+  { type: "youtube", label: "YouTube", hint: "YouTube video embed", rich: false, category: "Basic" },
+  { type: "icon", label: "Icon", hint: "Single glyph / icon", rich: false, category: "Basic" },
+
+  /* General Elements */
+  { type: "imageBox", label: "Image Box", hint: "Image + heading + text", rich: true, category: "General" },
+  { type: "iconBox", label: "Icon Box", hint: "Icon + heading + text", rich: false, category: "General" },
+  { type: "imageCarousel", label: "Image Carousel", hint: "Sliding image strip", rich: true, category: "General" },
+  { type: "gallery", label: "Basic Gallery", hint: "Image grid", rich: true, category: "General" },
+  { type: "iconList", label: "Icon List", hint: "Bulleted list with icons", rich: false, category: "General" },
+  { type: "counter", label: "Counter", hint: "Animated number", rich: false, category: "General" },
+  { type: "testimonial", label: "Testimonial", hint: "Quote + author", rich: false, category: "General" },
+  { type: "tabs", label: "Tabs", hint: "Tabbed panels", rich: false, category: "General" },
+  { type: "accordion", label: "Accordion", hint: "Collapsible panels", rich: false, category: "General" },
+  { type: "toggle", label: "Toggle", hint: "Single collapsible", rich: false, category: "General" },
+  { type: "socialIcons", label: "Social Icons", hint: "Row of social links", rich: false, category: "General" },
+  { type: "sidebar", label: "Sidebar", hint: "Widget sidebar", rich: false, category: "General" },
+  { type: "textPath", label: "Text Path", hint: "Text along a curve", rich: false, category: "General" },
+  { type: "form", label: "Form", hint: "Contact / subscribe form", rich: false, category: "General" },
+  { type: "cta", label: "Call to Action", hint: "Banner with button", rich: true, category: "General" },
+  { type: "flipBox", label: "Flip Box", hint: "Hover-flip card", rich: false, category: "General" },
+  { type: "priceList", label: "Price List", hint: "Menu-style price list", rich: false, category: "General" },
+  { type: "priceTable", label: "Price Table", hint: "Pricing plan card", rich: false, category: "General" },
+  { type: "shareButtons", label: "Share Buttons", hint: "Share to networks", rich: false, category: "General" },
+  { type: "animatedHeadline", label: "Animated Headline", hint: "Rotating highlight words", rich: false, category: "General" },
+  { type: "mediaCarousel", label: "Media Carousel", hint: "Mixed media slider", rich: true, category: "General" },
+  { type: "testimonialCarousel", label: "Testimonial Carousel", hint: "Sliding testimonials", rich: false, category: "General" },
+  { type: "reviews", label: "Reviews", hint: "Star reviews slider", rich: false, category: "General" },
+  { type: "facebook", label: "Facebook Page", hint: "FB page / comments", rich: false, category: "General" },
+  { type: "lottie", label: "Lottie Animation", hint: "Animated vector loop", rich: false, category: "General" },
+  { type: "countdown", label: "Countdown Timer", hint: "Counts to a date", rich: false, category: "General" },
+  { type: "iframe", label: "Web iFrame", hint: "Embed any URL", rich: false, category: "General" },
+
+  /* Editorial (original) */
+  { type: "cover", label: "Cover", hint: "Title page block", rich: false, category: "Editorial" },
+  { type: "kicker", label: "Kicker", hint: "Small uppercase label", rich: false, category: "Editorial" },
+  { type: "quote", label: "Quote", hint: "Pull quote with attribution", rich: false, category: "Editorial" },
+  { type: "chart", label: "Chart", hint: "Line or bar chart", rich: false, category: "Editorial" },
+  { type: "numbers", label: "Stats", hint: "Row of key figures", rich: false, category: "Editorial" },
+  { type: "notes", label: "Note", hint: "Margin / field note", rich: false, category: "Editorial" },
+  { type: "rule", label: "Rule", hint: "Foil divider line", rich: false, category: "Editorial" },
 ];
+
+export const templateCategories: BlockCategory[] = ["Layout", "Basic", "General", "Editorial"];
 
 export const defaultImage =
   "data:image/svg+xml," +
@@ -378,5 +542,85 @@ export function makeBlock(type: BlockType): Block {
       return { ...base, data: { title: "The\nPlaybook", subtitle: "Launch moves, calls and counters.", edition: "No. 04" } } as CoverBlock;
     case "divider":
       return { ...base, data: { label: "" } } as DividerBlock;
+    default:
+      return { ...base, data: genericDefaults(type as GenericBlockType) } as GenericBlock;
+  }
+}
+
+const SAMPLE_IMG = (seed: string) =>
+  `https://picsum.photos/seed/${seed}/640/400`;
+
+function genericDefaults(type: GenericBlockType): GenericData {
+  switch (type) {
+    case "flexContainer":
+      return { direction: "row", gap: 12, align: "stretch", justify: "flex-start", items: ["Column one", "Column two"] };
+    case "innerSection":
+      return { columns: 2, items: ["Section A", "Section B"] };
+    case "button":
+      return { text: "Get started", href: "#", style: "solid", align: "left" };
+    case "spacer":
+      return { height: 32 };
+    case "gmap":
+      return { query: "New York, NY", zoom: 12 };
+    case "youtube":
+      return { videoId: "dQw4w9WgXcQ", caption: "" };
+    case "icon":
+      return { glyph: "★", size: 40, label: "" };
+    case "imageBox":
+      return { src: SAMPLE_IMG("box"), title: "Image Box", body: "Short supporting copy sits beneath the image.", align: "center" };
+    case "iconBox":
+      return { glyph: "◈", title: "Icon Box", body: "Explain a feature with an icon, a title and a line of copy." };
+    case "imageCarousel":
+      return { images: [SAMPLE_IMG("c1"), SAMPLE_IMG("c2"), SAMPLE_IMG("c3")], caption: "" };
+    case "gallery":
+      return { images: [SAMPLE_IMG("g1"), SAMPLE_IMG("g2"), SAMPLE_IMG("g3"), SAMPLE_IMG("g4")], columns: 2 };
+    case "iconList":
+      return { items: ["First point", "Second point", "Third point"], glyph: "✓" };
+    case "counter":
+      return { start: 0, end: 1250, prefix: "", suffix: "+", title: "Happy readers" };
+    case "testimonial":
+      return { quote: "This playbook changed how our team ships.", author: "Alex Rivera", role: "Head of Product", avatar: SAMPLE_IMG("av") };
+    case "tabs":
+      return { tabs: [ { title: "Tab one", body: "Content for the first tab." }, { title: "Tab two", body: "Content for the second tab." } ] };
+    case "accordion":
+      return { items: [ { title: "What is this?", body: "An expandable answer." }, { title: "How does it work?", body: "Click a row to expand." } ] };
+    case "toggle":
+      return { title: "Read more", body: "Hidden content revealed on toggle.", open: false };
+    case "socialIcons":
+      return { networks: ["Twitter", "LinkedIn", "Instagram", "GitHub"] };
+    case "sidebar":
+      return { title: "Widgets", items: ["Recent posts", "Categories", "Tags"] };
+    case "textPath":
+      return { text: "Words that follow a gentle curve", curve: "wave" };
+    case "form":
+      return { title: "Get in touch", fields: ["Name", "Email", "Message"], submit: "Send" };
+    case "cta":
+      return { title: "Ready to begin?", body: "Start your next launch with confidence.", button: "Start now", src: SAMPLE_IMG("cta") };
+    case "flipBox":
+      return { frontTitle: "Hover me", backTitle: "Surprise!", backBody: "The card flips to reveal more.", front: SAMPLE_IMG("flip") };
+    case "priceList":
+      return { items: [ { name: "Espresso", desc: "Rich & bold", price: "$3" }, { name: "Cappuccino", desc: "Silky foam", price: "$4.5" } ] };
+    case "priceTable":
+      return { plan: "Pro", price: "$29", period: "/mo", features: ["Everything in Basic", "Priority support", "Unlimited pages"], button: "Choose Pro", featured: true };
+    case "shareButtons":
+      return { networks: ["Twitter", "Facebook", "LinkedIn", "Email"] };
+    case "animatedHeadline":
+      return { before: "We build", words: ["books", "stories", "experiences"], after: "that move." };
+    case "mediaCarousel":
+      return { images: [SAMPLE_IMG("m1"), SAMPLE_IMG("m2"), SAMPLE_IMG("m3")] };
+    case "testimonialCarousel":
+      return { items: [ { quote: "Absolutely brilliant.", author: "Sam Lee" }, { quote: "A joy to read.", author: "Dana Cole" } ] };
+    case "reviews":
+      return { items: [ { stars: 5, text: "Five stars, would flip again.", author: "Jordan" }, { stars: 4, text: "Really solid.", author: "Kim" } ] };
+    case "facebook":
+      return { page: "Meta", mode: "page" };
+    case "lottie":
+      return { preset: "pulse", caption: "" };
+    case "countdown":
+      return { target: new Date(Date.now() + 3 * 864e5).toISOString().slice(0, 10), title: "Launching in" };
+    case "iframe":
+      return { url: "https://example.com", height: 220 };
+    default:
+      return {};
   }
 }

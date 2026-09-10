@@ -22,6 +22,7 @@ import {
   blockIcon,
   blockLabel,
   templates,
+  templateCategories,
   PAGE_PRESETS,
   BG_TEXTURES,
   DEFAULT_FLIP_SPEED,
@@ -124,7 +125,14 @@ function BlockThumb({ block }: { block: Block }) {
         </div>
       );
     default:
-      return <div className="thumb-line">Block</div>;
+      return (
+        <div className="thumb-line">
+          <b>
+            <span className="thumb-el-icon">{blockIcon[block.type]}</span> {blockLabel[block.type]}
+          </b>
+          <span className="thumb-el-hint">{blockLabel[block.type]} element</span>
+        </div>
+      );
   }
 }
 
@@ -286,9 +294,349 @@ function BlockEditor({ block, pageId, onClose }: { block: Block; pageId: string;
             <input value={block.data.label ?? ""} onChange={(e) => set({ label: e.target.value })} />
           </label>
         )}
+
+        <GenericInspector block={block} set={set} />
       </div>
     </div>
   );
+}
+
+/* ------------------------------------------------------------------ */
+/* inspector for the extended (Elementor-style) elements              */
+/* ------------------------------------------------------------------ */
+
+const CORE_TYPES = new Set([
+  "heading",
+  "text",
+  "kicker",
+  "rule",
+  "quote",
+  "image",
+  "video",
+  "chart",
+  "numbers",
+  "notes",
+  "cover",
+  "divider",
+]);
+
+function GenericInspector({
+  block,
+  set,
+}: {
+  block: Block;
+  set: (patch: Record<string, unknown>) => void;
+}) {
+  if (CORE_TYPES.has(block.type)) return null;
+  const d = block.data as Record<string, unknown>;
+  const str = (k: string, dflt = "") => (typeof d[k] === "string" ? (d[k] as string) : dflt);
+  const num = (k: string, dflt = 0) => (typeof d[k] === "number" ? (d[k] as number) : dflt);
+  const list = (k: string): string[] => (Array.isArray(d[k]) ? (d[k] as unknown[]).map(String) : []);
+
+  const Text = ({ k, label, area = false }: { k: string; label: string; area?: boolean }) => (
+    <label className="field">
+      <span>{label}</span>
+      {area ? (
+        <textarea rows={2} value={str(k)} onChange={(e) => set({ [k]: e.target.value })} />
+      ) : (
+        <input value={str(k)} onChange={(e) => set({ [k]: e.target.value })} />
+      )}
+    </label>
+  );
+  const Num = ({ k, label }: { k: string; label: string }) => (
+    <label className="field">
+      <span>{label}</span>
+      <input type="number" value={num(k)} onChange={(e) => set({ [k]: +e.target.value })} />
+    </label>
+  );
+  // newline-separated list editor
+  const Lines = ({ k, label }: { k: string; label: string }) => (
+    <label className="field">
+      <span>{label} <i>one per line</i></span>
+      <textarea
+        rows={3}
+        value={list(k).join("\n")}
+        onChange={(e) => set({ [k]: e.target.value.split("\n").filter((x) => x.trim() !== "") })}
+      />
+    </label>
+  );
+  // key/value pair lists stored as objects, edited as "a | b | c" lines
+  const PairLines = ({
+    k,
+    label,
+    keys,
+  }: {
+    k: string;
+    label: string;
+    keys: string[];
+  }) => {
+    const rows = Array.isArray(d[k]) ? (d[k] as Record<string, unknown>[]) : [];
+    const text = rows.map((r) => keys.map((kk) => String(r[kk] ?? "")).join(" | ")).join("\n");
+    return (
+      <label className="field">
+        <span>
+          {label} <i>{keys.join(" | ")}</i>
+        </span>
+        <textarea
+          rows={3}
+          value={text}
+          onChange={(e) =>
+            set({
+              [k]: e.target.value
+                .split("\n")
+                .filter((x) => x.trim() !== "")
+                .map((line) => {
+                  const parts = line.split("|").map((p) => p.trim());
+                  const obj: Record<string, unknown> = {};
+                  keys.forEach((kk, i) => (obj[kk] = kk === "stars" ? Number(parts[i] ?? 5) : parts[i] ?? ""));
+                  return obj;
+                }),
+            })
+          }
+        />
+      </label>
+    );
+  };
+
+  switch (block.type) {
+    case "flexContainer":
+      return (
+        <>
+          <label className="field">
+            <span>Direction</span>
+            <select value={str("direction", "row")} onChange={(e) => set({ direction: e.target.value })}>
+              <option value="row">Row</option>
+              <option value="column">Column</option>
+            </select>
+          </label>
+          <Num k="gap" label="Gap (px)" />
+          <Lines k="items" label="Cells" />
+        </>
+      );
+    case "innerSection":
+      return (
+        <>
+          <Num k="columns" label="Columns" />
+          <Lines k="items" label="Sections" />
+        </>
+      );
+    case "button":
+      return (
+        <>
+          <Text k="text" label="Label" />
+          <Text k="href" label="Link URL" />
+          <label className="field">
+            <span>Style</span>
+            <select value={str("style", "solid")} onChange={(e) => set({ style: e.target.value })}>
+              <option value="solid">Solid</option>
+              <option value="outline">Outline</option>
+              <option value="ghost">Ghost</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Align</span>
+            <select value={str("align", "left")} onChange={(e) => set({ align: e.target.value })}>
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+            </select>
+          </label>
+        </>
+      );
+    case "spacer":
+      return <Num k="height" label="Height (px)" />;
+    case "gmap":
+      return (
+        <>
+          <Text k="query" label="Location" />
+          <Num k="zoom" label="Zoom (1-20)" />
+        </>
+      );
+    case "youtube":
+      return (
+        <>
+          <Text k="videoId" label="YouTube video ID" />
+          <Text k="caption" label="Caption" />
+        </>
+      );
+    case "icon":
+      return (
+        <>
+          <Text k="glyph" label="Glyph / emoji" />
+          <Num k="size" label="Size (px)" />
+          <Text k="label" label="Caption" />
+        </>
+      );
+    case "imageBox":
+      return (
+        <>
+          <Text k="src" label="Image URL" />
+          <Text k="title" label="Title" />
+          <Text k="body" label="Body" area />
+        </>
+      );
+    case "iconBox":
+      return (
+        <>
+          <Text k="glyph" label="Glyph / emoji" />
+          <Text k="title" label="Title" />
+          <Text k="body" label="Body" area />
+        </>
+      );
+    case "imageCarousel":
+    case "mediaCarousel":
+    case "gallery":
+      return (
+        <>
+          <Lines k="images" label="Image URLs" />
+          {block.type === "gallery" && <Num k="columns" label="Columns" />}
+        </>
+      );
+    case "iconList":
+      return (
+        <>
+          <Text k="glyph" label="Bullet glyph" />
+          <Lines k="items" label="Items" />
+        </>
+      );
+    case "counter":
+      return (
+        <>
+          <Num k="end" label="Target number" />
+          <Text k="prefix" label="Prefix" />
+          <Text k="suffix" label="Suffix" />
+          <Text k="title" label="Label" />
+        </>
+      );
+    case "testimonial":
+      return (
+        <>
+          <Text k="quote" label="Quote" area />
+          <Text k="author" label="Author" />
+          <Text k="role" label="Role" />
+          <Text k="avatar" label="Avatar URL" />
+        </>
+      );
+    case "tabs":
+      return <PairLines k="tabs" label="Tabs" keys={["title", "body"]} />;
+    case "accordion":
+      return <PairLines k="items" label="Panels" keys={["title", "body"]} />;
+    case "toggle":
+      return (
+        <>
+          <Text k="title" label="Title" />
+          <Text k="body" label="Body" area />
+        </>
+      );
+    case "socialIcons":
+    case "shareButtons":
+      return <Lines k="networks" label="Networks" />;
+    case "sidebar":
+      return (
+        <>
+          <Text k="title" label="Title" />
+          <Lines k="items" label="Widgets" />
+        </>
+      );
+    case "textPath":
+      return <Text k="text" label="Text" />;
+    case "form":
+      return (
+        <>
+          <Text k="title" label="Title" />
+          <Lines k="fields" label="Fields" />
+          <Text k="submit" label="Submit label" />
+        </>
+      );
+    case "cta":
+      return (
+        <>
+          <Text k="title" label="Title" />
+          <Text k="body" label="Body" area />
+          <Text k="button" label="Button label" />
+          <Text k="src" label="Background image URL" />
+        </>
+      );
+    case "flipBox":
+      return (
+        <>
+          <Text k="front" label="Front image URL" />
+          <Text k="frontTitle" label="Front title" />
+          <Text k="backTitle" label="Back title" />
+          <Text k="backBody" label="Back body" area />
+        </>
+      );
+    case "priceList":
+      return <PairLines k="items" label="Items" keys={["name", "desc", "price"]} />;
+    case "priceTable":
+      return (
+        <>
+          <Text k="plan" label="Plan name" />
+          <Text k="price" label="Price" />
+          <Text k="period" label="Period" />
+          <Lines k="features" label="Features" />
+          <Text k="button" label="Button label" />
+        </>
+      );
+    case "animatedHeadline":
+      return (
+        <>
+          <Text k="before" label="Before words" />
+          <Lines k="words" label="Rotating words" />
+          <Text k="after" label="After words" />
+        </>
+      );
+    case "testimonialCarousel":
+      return <PairLines k="items" label="Testimonials" keys={["quote", "author"]} />;
+    case "reviews":
+      return <PairLines k="items" label="Reviews" keys={["stars", "text", "author"]} />;
+    case "facebook":
+      return (
+        <>
+          <Text k="page" label="Page name" />
+          <label className="field">
+            <span>Mode</span>
+            <select value={str("mode", "page")} onChange={(e) => set({ mode: e.target.value })}>
+              <option value="page">Page</option>
+              <option value="comments">Comments</option>
+            </select>
+          </label>
+        </>
+      );
+    case "lottie":
+      return (
+        <>
+          <label className="field">
+            <span>Preset</span>
+            <select value={str("preset", "pulse")} onChange={(e) => set({ preset: e.target.value })}>
+              <option value="pulse">Pulse</option>
+              <option value="orbit">Orbit</option>
+              <option value="bounce">Bounce</option>
+            </select>
+          </label>
+          <Text k="caption" label="Caption" />
+        </>
+      );
+    case "countdown":
+      return (
+        <>
+          <label className="field">
+            <span>Target date</span>
+            <input type="date" value={str("target")} onChange={(e) => set({ target: e.target.value })} />
+          </label>
+          <Text k="title" label="Title" />
+        </>
+      );
+    case "iframe":
+      return (
+        <>
+          <Text k="url" label="Embed URL" />
+          <Num k="height" label="Height (px)" />
+        </>
+      );
+    default:
+      return null;
+  }
 }
 
 function MediaFields({
@@ -352,6 +700,7 @@ function MediaFields({
 function PageComposer({ page }: { page: BookPage }) {
   const { addBlock, removeBlock, moveBlock, duplicateBlock } = useStore();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [paletteQuery, setPaletteQuery] = useState("");
   const blocks = useMemo(() => page.blocks.slice().sort((a, b) => a.order - b.order), [page.blocks]);
 
   return (
@@ -387,20 +736,41 @@ function PageComposer({ page }: { page: BookPage }) {
 
       <div className="palette">
         <p className="palette-title font-mono">Add content</p>
-        <div className="palette-grid">
-          {templates.map((t) => (
-            <button
-              key={t.type}
-              className={`palette-item ${t.rich ? "palette-item-rich" : ""}`}
-              onClick={() => setActiveId(addBlock(page.id, t.type))}
-              title={t.hint}
-            >
-              <span className="palette-icon">{blockIcon[t.type]}</span>
-              <span className="font-mono">{t.label}</span>
-              {t.rich && <i className="palette-dot" />}
-            </button>
-          ))}
-        </div>
+        <input
+          className="palette-search font-mono"
+          placeholder="Search elements…"
+          value={paletteQuery}
+          onChange={(e) => setPaletteQuery(e.target.value)}
+        />
+        {templateCategories.map((cat) => {
+          const items = templates.filter(
+            (t) =>
+              t.category === cat &&
+              (paletteQuery.trim() === "" ||
+                t.label.toLowerCase().includes(paletteQuery.toLowerCase()) ||
+                t.hint.toLowerCase().includes(paletteQuery.toLowerCase())),
+          );
+          if (items.length === 0) return null;
+          return (
+            <div key={cat} className="palette-cat">
+              <p className="palette-cat-title font-mono">{cat} Elements</p>
+              <div className="palette-grid">
+                {items.map((t) => (
+                  <button
+                    key={t.type}
+                    className={`palette-item ${t.rich ? "palette-item-rich" : ""}`}
+                    onClick={() => setActiveId(addBlock(page.id, t.type))}
+                    title={t.hint}
+                  >
+                    <span className="palette-icon">{blockIcon[t.type]}</span>
+                    <span className="font-mono">{t.label}</span>
+                    {t.rich && <i className="palette-dot" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
