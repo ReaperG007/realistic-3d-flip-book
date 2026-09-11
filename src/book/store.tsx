@@ -25,6 +25,7 @@ type StoreValue = {
   updateTitle: (title: string) => void;
   setFlipAxis: (flipAxis: FlipAxis) => void;
   setFlipSpeed: (flipSpeed: FlipSpeed) => void;
+  importSession: (next: Session) => void;
   updatePageMeta: (
     pageId: string,
     patch: Partial<Omit<BookPage, "id" | "blocks">>
@@ -43,7 +44,7 @@ type StoreValue = {
 
 const StoreContext = createContext<StoreValue | null>(null);
 
-const STORAGE_KEY = "playbook-session-v1";
+const STORAGE_KEY = "playbook-session-playbook-v1";
 
 function loadSession(): Session {
   try {
@@ -222,12 +223,62 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setSession(seedSession());
   }, []);
 
+  const importSession = useCallback<StoreValue["importSession"]>((next) => {
+    // basic shape validation — keep seed fallback for corrupted payloads
+    if (!next || typeof next.title !== "string" || !Array.isArray(next.pages) || next.pages.length === 0) {
+      throw new Error("Invalid project file: missing title or pages");
+    }
+    // ensure every page has an id/title/label/blocks array so the reader never crashes
+    const pages: BookPage[] = next.pages.map((p: unknown) => {
+      const page = p as Partial<BookPage>;
+      return {
+        id: typeof page.id === "string" && page.id ? page.id : uid("page"),
+        label: typeof page.label === "string" ? page.label : "Page",
+        title: typeof page.title === "string" ? page.title : "Untitled",
+        tone: (page.tone as BookPage["tone"]) ?? "paper",
+        bgPreset: page.bgPreset,
+        customBgColor: page.customBgColor,
+        bgImage: page.bgImage,
+        bgImageOpacity: page.bgImageOpacity,
+        bgImageFit: page.bgImageFit,
+        bgBlendMode: page.bgBlendMode,
+        isIndexPage: !!page.isIndexPage,
+        blocks: Array.isArray(page.blocks) ? (page.blocks as Block[]) : [],
+      };
+    });
+    // enforce single TOC page — keep first isIndexPage true, clear the rest
+    let seenIndex = false;
+    for (const pg of pages) {
+      if (pg.isIndexPage) {
+        if (seenIndex) pg.isIndexPage = false;
+        else seenIndex = true;
+      }
+    }
+    // normalize block order per page
+    for (const pg of pages) {
+      pg.blocks.forEach((blk, i) => {
+        if (typeof blk.order !== "number") blk.order = i;
+      });
+      pg.blocks.sort((a, b) => a.order - b.order);
+      pg.blocks.forEach((blk, i) => (blk.order = i));
+    }
+    const clean: Session = {
+      title: next.title,
+      edition: typeof next.edition === "string" ? next.edition : "No. 01",
+      flipAxis: next.flipAxis === "vertical" ? "vertical" : "horizontal",
+      flipSpeed: next.flipSpeed ?? "slow",
+      pages,
+    };
+    setSession(clean);
+  }, []);
+
   const value = useMemo<StoreValue>(
     () => ({
       session,
       updateTitle,
       setFlipAxis,
       setFlipSpeed,
+      importSession,
       updatePageMeta,
       applyBgToAll,
       addPage,
@@ -240,7 +291,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       duplicateBlock,
       reset,
     }),
-    [session, updateTitle, setFlipAxis, setFlipSpeed, updatePageMeta, applyBgToAll, addPage, removePage, movePage, addBlock, updateBlock, removeBlock, moveBlock, duplicateBlock, reset],
+    [session, updateTitle, setFlipAxis, setFlipSpeed, importSession, updatePageMeta, applyBgToAll, addPage, removePage, movePage, addBlock, updateBlock, removeBlock, moveBlock, duplicateBlock, reset],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

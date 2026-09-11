@@ -1,23 +1,32 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
+  Archive,
   ArrowDown,
   ArrowUp,
   Check,
   ChevronDown,
   Copy,
+  ExternalLink,
+  FileArchive,
+  FileCode2,
+  FileJson,
   GripVertical,
   Image as ImageIcon,
   Layers,
+  Loader2,
   MoveHorizontal,
   MoveVertical,
+  PackageOpen,
   Paintbrush,
   Plus,
   RotateCcw,
   Sparkles,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
 import { useStore } from "../book/store";
+import { slugify, exportZip } from "../utils/exportZip";
 import {
   blockIcon,
   blockLabel,
@@ -1055,6 +1064,202 @@ function PageBackgroundEditor({
 }
 
 /* ------------------------------------------------------------------ */
+/* zip export                                                         */
+/* ------------------------------------------------------------------ */
+
+function ExportPanel() {
+  const { session, importSession } = useStore();
+  const baseSlug = slugify(session.title);
+  const [zipName, setZipName] = useState("");
+  const [includeJson, setIncludeJson] = useState(true);
+  const [busy, setBusy] = useState<null | "zip" | "import">(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const displayZip = (zipName.trim() ? zipName.trim().replace(/\.zip$/i, "") : `${baseSlug}-export`) + ".zip";
+
+  const flash = (msg: string) => {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 2800);
+  };
+
+  const handleZip = async () => {
+    if (busy) return;
+    setBusy("zip");
+    try {
+      await exportZip(session, { zipName: displayZip, includeJson, format: "flipbook" });
+      flash(`Downloaded ${displayZip}`);
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const readAndImport = async (file: File) => {
+    if (busy) return;
+    setBusy("import");
+    try {
+      const text = await file.text();
+      let data: unknown;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("Not valid JSON — make sure you selected book.json");
+      }
+      // allow both raw Session and ZIP-extracted { session } wrappers
+      const candidate = (data as { session?: unknown }).session ?? data;
+      importSession(candidate as Parameters<typeof importSession>[0]);
+      flash(`Imported ${file.name} — ${((candidate as { pages?: unknown[] })?.pages?.length ?? 0)} pages`);
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Import failed");
+    } finally {
+      setBusy(null);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) void readAndImport(f);
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f) void readAndImport(f);
+  };
+
+  const totalBlocks = session.pages.reduce((a, p) => a + p.blocks.length, 0);
+  return (
+    <div className="export-panel">
+      <div className="export-callout">
+        <span className="export-callout-icon" aria-hidden>
+          <PackageOpen size={14} />
+        </span>
+        <div className="export-callout-copy">
+          <b className="font-mono">Final edited version</b>
+          <span className="font-serif">
+            Packages your book as an interactive 3D flip book — drag to flip, click edges, arrow keys, present mode. Drop the ZIP on any static host.
+          </span>
+        </div>
+      </div>
+
+      <div className="export-stats">
+        <span className="export-stat">
+          <i className="font-mono">{session.pages.length}</i> pages
+        </span>
+        <span className="export-stat-dot" />
+        <span className="export-stat">
+          <i className="font-mono">{totalBlocks}</i> blocks
+        </span>
+        <span className="export-stat-dot" />
+        <span className="export-stat">{session.edition}</span>
+        <span className="export-stat-dot" />
+        <span className="export-stat" style={{ color: "var(--color-foil)" }}>
+          {"\u{1F504}"} Flip book
+        </span>
+      </div>
+
+      <div className="export-files">
+        <p className="export-files-title font-mono">What’s inside the ZIP</p>
+        <div className="export-file-list">
+          <span className="export-file export-file-main">
+            <FileCode2 size={13} /> index.html <small>· interactive flip book</small>
+          </span>
+          <span className={`export-file ${includeJson ? "" : "export-file-off"}`}>
+            <FileJson size={13} /> book.json <small>· re-importable source</small>
+          </span>
+          <span className="export-file export-file-muted">
+            <FileArchive size={13} /> README.txt
+          </span>
+        </div>
+      </div>
+
+      <label className="field">
+        <span>ZIP filename</span>
+        <div className="export-name-row">
+          <input
+            value={zipName}
+            onChange={(e) => setZipName(e.target.value)}
+            placeholder={`${baseSlug}-export.zip`}
+            className="export-name-input"
+            spellCheck={false}
+            autoComplete="off"
+          />
+          <span className="export-name-suffix font-mono">.zip</span>
+        </div>
+        <span className="export-hint font-mono">Leave blank to use <b>{displayZip}</b></span>
+      </label>
+
+      <label className="export-checkrow">
+        <input type="checkbox" checked={includeJson} onChange={(e) => setIncludeJson(e.target.checked)} />
+        <span className="export-check-box">{includeJson && <Check size={11} strokeWidth={3} />}</span>
+        <span className="export-check-copy">
+          <b className="font-mono">Include book.json</b>
+          <small className="font-serif">so you can re-import this exact book later.</small>
+        </span>
+      </label>
+
+      <div className="export-actions">
+        <button type="button" className="export-primary" onClick={handleZip} disabled={!!busy}>
+          {busy === "zip" ? <Loader2 size={15} className="animate-spin" /> : <Archive size={15} />}
+          <span className="font-mono">{busy === "zip" ? "Packing…" : "Download ZIP"}</span>
+        </button>
+      </div>
+
+      {/* Import project JSON — replaces the old index.html-only download */}
+      <div
+        className={`export-import ${dragOver ? "export-import-dragover" : ""}`}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={onDrop}
+      >
+        <div className="export-import-head">
+          <span className="export-import-icon" aria-hidden><Upload size={13} /></span>
+          <div className="export-import-copy">
+            <b className="font-mono">Import project JSON</b>
+            <small className="font-serif">Re-open a previously exported <code>book.json</code>. This replaces the current book.</small>
+          </div>
+        </div>
+        <div className="export-import-actions">
+          <input
+            ref={(el) => { fileRef.current = el; }}
+            type="file"
+            accept=".json,application/json"
+            onChange={onFileChange}
+            hidden
+          />
+          <button
+            type="button"
+            className="export-import-btn"
+            disabled={!!busy}
+            onClick={() => fileRef.current?.click()}
+          >
+            {busy === "import" ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+            <span className="font-mono">{busy === "import" ? "Importing…" : "Choose book.json"}</span>
+          </button>
+          <span className="export-import-hint font-mono">or drop the file here</span>
+        </div>
+      </div>
+
+      <p className="export-footnote font-mono">
+        <ExternalLink size={11} /> Open index.html in any browser — drag to flip pages, arrow keys to navigate, present button for full-screen.
+      </p>
+
+      {toast && (
+        <div className="export-toast" role="status">
+          <Check size={13} />
+          <span className="font-mono">{toast}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* editor shell                                                       */
 /* ------------------------------------------------------------------ */
 
@@ -1236,6 +1441,18 @@ export default function Editor({
               </div>
             </div>
           )}
+
+          <details className="editor-section editor-export" open>
+            <summary>
+              <span className="font-mono flex items-center gap-1.5">
+                <Archive size={13} /> Export · ZIP
+              </span>
+              <ChevronDown size={14} />
+            </summary>
+            <div className="editor-section-body">
+              <ExportPanel />
+            </div>
+          </details>
         </div>
       </section>
     </>
