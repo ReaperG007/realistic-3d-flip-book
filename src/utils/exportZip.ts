@@ -581,7 +581,10 @@ body{font-family:var(--font-serif);color:#1d1e19;background:radial-gradient(120%
 .page-face-compose.dark{color:#f2e8d6;background:radial-gradient(120% 90% at 90% 4%,rgba(231,201,138,0.22),transparent 54%),linear-gradient(104deg,#172822 0%,#12201c 62%,#0c1714 100%)}
 .page-face-compose.cover{background:radial-gradient(100% 70% at 18% 6%,rgba(231,201,138,0.2),transparent 58%),linear-gradient(158deg,#1f3a31 0%,#16261f 55%,#0e1a16 100%);box-shadow:inset 0 0 0 1px rgba(231,201,138,0.18),inset 0 0 60px rgba(0,0,0,0.5)}
 .page-face-compose.closing{background:radial-gradient(100% 70% at 18% 6%,rgba(231,201,138,0.18),transparent 58%),linear-gradient(158deg,#1f3a31 0%,#16261f 55%,#0e1a16 100%);box-shadow:inset 0 0 0 1px rgba(231,201,138,0.18),inset 0 0 60px rgba(0,0,0,0.5)}
-.page-blocks{position:relative;z-index:10;height:100%;width:100%;display:flex;flex-direction:column;gap:clamp(0.35rem,1.3vh,0.9rem);padding:7.4% 7.2% 7%;overflow:hidden;scrollbar-width:none;contain:layout style}
+.page-blocks{position:relative;z-index:10;height:100%;width:100%;display:flex;flex-direction:column;gap:clamp(0.35rem,1.3vh,0.9rem);padding:7.4% 7.2% 7%;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(120,100,70,0.22) transparent;contain:layout style}
+.page-blocks::-webkit-scrollbar{width:5px}
+.page-blocks::-webkit-scrollbar-thumb{background:rgba(120,100,70,0.22);border-radius:999px}
+.page-blocks::-webkit-scrollbar-track{background:transparent}
 .page-blocks>*{flex:none}
 .face-grain{position:absolute;inset:0;pointer-events:none;opacity:0.5;mix-blend-mode:multiply;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23p)' opacity='0.42'/%3E%3C/svg%3E")}
 .page-face-compose.dark .face-grain,.page-face-compose.dark-theme .face-grain{mix-blend-mode:overlay;opacity:0.28}
@@ -782,16 +785,16 @@ body{font-family:var(--font-serif);color:#1d1e19;background:radial-gradient(120%
 .stage{order:2;min-height:min(58vh,560px)}
   }
 @media (max-width:720px){
-  .shell{grid-template-rows:auto 1fr auto;gap:clamp(0.5rem,2vw,0.8rem);padding:clamp(0.6rem,3vw,0.9rem) clamp(0.6rem,3vw,0.9rem) clamp(0.45rem,2vw,0.8rem)}
-  .top-bar{flex-direction:column;align-items:stretch}
+  .shell{grid-template-rows:auto 1fr auto;gap:0.22rem;min-height:100dvh;min-height:100svh;height:100dvh;height:100svh;padding:clamp(0.35rem,2vw,0.6rem) clamp(0.5rem,2.5vw,0.75rem) clamp(0.3rem,1.8vw,0.5rem);padding-top:max(clamp(0.35rem,2vw,0.6rem),env(safe-area-inset-top));padding-bottom:max(clamp(0.3rem,1.8vw,0.5rem),env(safe-area-inset-bottom))}
+  .top-bar{flex-direction:column;align-items:stretch;gap:0.45rem;padding-bottom:0.4rem}
   .brand-title{font-size:clamp(1.15rem,6vw,1.55rem)}
   .top-meta{gap:0.55rem}
   .meta-cell{min-width:0;flex:1}
   .meta-val{font-size:0.78rem}
   .progress-track{width:auto;min-width:64px}
-  .grid{gap:0.7rem}
-  .stage{padding:0.2rem 0}
-  .book{--bw:clamp(220px,min(86vw,44svh),392px)}
+  .grid{gap:0.25rem;align-items:stretch;min-height:0;height:100%}
+  .stage{padding:0.15rem 0;min-height:0;height:100%;display:grid;place-items:center;align-content:center}
+  .book{--bw:clamp(240px,min(94vw,62svh,64vh),460px)}
   .dock{justify-content:center;gap:0.45rem}
   .dock-group{gap:0.28rem}
   .ctl{min-width:32px;height:32px;padding-inline:0.38rem}
@@ -955,31 +958,58 @@ body{font-family:var(--font-serif);color:#1d1e19;background:radial-gradient(120%
     else runFlip({dir:"back",sheet:t}, 0.0001, 1, t);
   }
 
-  // drag
+  // drag — scroll-aware: vertical swipe scrolls the page, horizontal swipe flips
+  var startY = 0;
+  var pendingCaptureId = null;
   book.addEventListener("pointerdown", function(e){
     if(busy || e.button > 0) return;
-    var rect = book.getBoundingClientRect();
-    var rel = vertical ? (e.clientY - rect.top) / rect.height : (e.clientX - rect.left) / rect.width;
-    var dir = rel < 0.34 ? "back" : "fwd";
-    if(dir === "back" && idx <= 0) dir = "fwd";
-    if(dir === "fwd" && idx >= N-1) dir = "back";
-    if((dir === "fwd" && idx >= N-1) || (dir === "back" && idx <= 0)) return;
     startX = vertical ? e.clientY : e.clientX;
+    startY = vertical ? e.clientX : e.clientY;
     lastDx = 0;
     dragging = true;
     touched = true;
     snapping = false;
-    flipping = { dir: dir, sheet: dir === "fwd" ? idx : idx-1 };
-    window._flip = flipping;
+    flipping = null;
+    window._flip = null;
     p = 0; window._p = 0;
-    book.setPointerCapture(e.pointerId);
-    render();
+    pendingCaptureId = e.pointerId;
+    // do not capture yet — let pointermove decide flip vs scroll
   });
 
   book.addEventListener("pointermove", function(e){
-    if(!dragging || !flipping || snapping) return;
-    var rect = book.getBoundingClientRect();
-    var span = (vertical ? rect.height : rect.width) * 0.82;
+    if(!dragging || snapping) return;
+    var dxMain = (vertical ? e.clientY : e.clientX) - startX;
+    var dxCross = (vertical ? e.clientX : e.clientY) - startY;
+    if(!flipping){
+      var absMain = Math.abs(dxMain);
+      var absCross = Math.abs(dxCross);
+      // need intentional movement before deciding
+      if(absMain < 6 && absCross < 6) return;
+      // scroll wins if cross-axis dominates
+      if(absCross > absMain + 4){
+        dragging = false;
+        pendingCaptureId = null;
+        return;
+      }
+      // flip wins — decide direction by initial touch position
+      var rect = book.getBoundingClientRect();
+      var rel = vertical ? (startX - rect.top) / rect.height : (startX - rect.left) / rect.width;
+      var dir = rel < 0.34 ? "back" : "fwd";
+      if(dir === "back" && idx <= 0) dir = "fwd";
+      if(dir === "fwd" && idx >= N-1) dir = "back";
+      if((dir === "fwd" && idx >= N-1) || (dir === "back" && idx <= 0)){
+        dragging = false;
+        pendingCaptureId = null;
+        return;
+      }
+      flipping = { dir: dir, sheet: dir === "fwd" ? idx : idx-1 };
+      window._flip = flipping;
+      try{ book.setPointerCapture(pendingCaptureId); }catch(err){}
+      render();
+    }
+    if(!flipping) return;
+    var rect2 = book.getBoundingClientRect();
+    var span = (vertical ? rect2.height : rect2.width) * 0.82;
     var dx = (vertical ? e.clientY : e.clientX) - startX;
     lastDx = dx;
     p = flipping.dir === "fwd" ? clamp01(-dx/span) : clamp01(dx/span);
@@ -988,8 +1018,8 @@ body{font-family:var(--font-serif);color:#1d1e19;background:radial-gradient(120%
   });
 
   book.addEventListener("pointerup", function(e){
-    if(!dragging) return;
     dragging = false;
+    pendingCaptureId = null;
     if(!flipping) return;
     var dragged = Math.abs(lastDx) > 6;
     var done = !dragged ? true : flipping.dir === "fwd" ? p > 0.4 : p > 0.6;
@@ -997,8 +1027,8 @@ body{font-family:var(--font-serif);color:#1d1e19;background:radial-gradient(120%
   });
 
   book.addEventListener("pointercancel", function(e){
-    if(!dragging) return;
     dragging = false;
+    pendingCaptureId = null;
     if(!flipping) return;
     runFlip(flipping, p, p > 0.78 ? 1 : 0, flipping.dir === "fwd" ? flipping.sheet+1 : flipping.sheet);
   });
@@ -1041,9 +1071,8 @@ body{font-family:var(--font-serif);color:#1d1e19;background:radial-gradient(120%
     if(btn) goTo(parseInt(btn.getAttribute("data-goto"), 10));
   });
 
-  // keyboard hint
+  // keyboard hint — fade only when a flip starts
   var prevHandler = function(){ if(hint) hint.style.opacity = "0"; };
-  book.addEventListener("pointerdown", prevHandler);
   document.addEventListener("keydown", prevHandler);
 
   // observe auto complete
@@ -1053,45 +1082,42 @@ body{font-family:var(--font-serif);color:#1d1e19;background:radial-gradient(120%
   // init
   render();
 
-  // ── auto-scale page content to fit ──────────────────────────────
-  // When content overflows the page, scale the .page-blocks down
-  // so everything stays visible without scroll or clipping.
-  function scalePageContent(){
-    var face = document.getElementById("static-face");
-    if(!face) return;
-    var pb = face.querySelector(".page-blocks");
-    if(!pb) return;
-    // reset scale before measuring
-    pb.style.transform = "";
-    pb.style.transformOrigin = "top left";
-    pb.style.width = "100%";
-    // measure available height (page face height minus padding)
-    var fh = face.clientHeight;
-    var style = window.getComputedStyle(pb);
-    var pt = parseFloat(style.paddingTop) || 0;
-    var pb2 = parseFloat(style.paddingBottom) || 0;
-    var avail = fh - pt - pb2;
-    if(avail <= 0) return;
-    var need = pb.scrollHeight;
-    if(need > avail + 2){
-      var scale = avail / need;
-      pb.style.transform = "scale(" + scale + ")";
-      pb.style.height = (avail / scale) + "px";
-    } else {
-      pb.style.height = "";
-    }
-  }
-  // run after each flip completes
-  var origFinish = finish;
+  // keep newly turned page scrolled to top; preserve scroll on same-page re-render
+  var _lastStaticI = -1;
+  var _origFinish = finish;
   finish = function(target){
-    origFinish(target);
-    requestAnimationFrame(scalePageContent);
+    _origFinish(target);
+    _lastStaticI = target;
+    var pb = document.querySelector("#static-face .page-blocks");
+    if(pb) pb.scrollTop = 0;
   };
-  // also run on first render and window resize
-  requestAnimationFrame(scalePageContent);
-  window.addEventListener("resize", function(){ requestAnimationFrame(scalePageContent); });
-  // re-scale after the CSS transition finishes (snap animation)
-  setInterval(function(){ if(!busy) scalePageContent(); }, 600);
+  var _origRender = render;
+  render = function(){
+    // preserve scroll if same page is re-rendered during drag
+    var sf = document.getElementById("static-face");
+    var prevTop = 0;
+    var samePage = false;
+    if(sf){
+      var pbPrev = sf.querySelector(".page-blocks");
+      if(pbPrev) prevTop = pbPrev.scrollTop;
+      // peek next staticI without duplicating render logic: compute as render does
+      var flipPeek = window._flip;
+      var peekI = flipPeek ? (flipPeek.dir === "fwd" ? Math.min(flipPeek.sheet+1,N-1) : idx) : idx;
+      samePage = (_lastStaticI === peekI && _lastStaticI !== -1);
+    }
+    _origRender();
+    if(samePage){
+      var pbNew = document.getElementById("static-face");
+      if(pbNew){ var pb2 = pbNew.querySelector(".page-blocks"); if(pb2) pb2.scrollTop = prevTop; }
+    } else {
+      // new page — ensure top and remember
+      var flip2 = window._flip;
+      var curI = flip2 ? (flip2.dir === "fwd" ? Math.min(flip2.sheet+1,N-1) : idx) : idx;
+      _lastStaticI = curI;
+      var pbTop = document.getElementById("static-face");
+      if(pbTop){ var pbt = pbTop.querySelector(".page-blocks"); if(pbt && !samePage) pbt.scrollTop = 0; }
+    }
+  };
 })();
 `;
 
