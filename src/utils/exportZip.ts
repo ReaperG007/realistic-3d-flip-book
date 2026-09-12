@@ -464,9 +464,7 @@ body{font-family:var(--font-serif);color:#1d1e19;background:radial-gradient(120%
 :fullscreen .shell,:-webkit-full-screen .shell{max-width:none;width:100vw;height:100vh;height:100dvh;height:100svh;min-height:100vh;min-height:100dvh;min-height:100svh}
 :fullscreen .grid,:-webkit-full-screen .grid{height:100%}
 :fullscreen .stage,:-webkit-full-screen .stage{height:100%}
-50%{opacity:0.25}}
 /* mode bar */
-.mode-toggle:hover{color:#f8f1e0;background:rgba(231,201,138,0.12)}
 /* shell */
 .shell{position:relative;display:grid;grid-template-rows:auto 1fr auto;min-height:100vh;min-height:100dvh;min-height:100svh;width:100%;max-width:none;margin:0;padding:clamp(0.7rem,2vw,1.4rem) clamp(0.7rem,2.6vw,2rem) clamp(0.5rem,1.2vw,1rem);padding-top:max(clamp(0.7rem,2vw,1.4rem),env(safe-area-inset-top));padding-right:max(clamp(0.7rem,2.6vw,2rem),env(safe-area-inset-right));padding-bottom:max(clamp(0.5rem,1.2vw,1rem),env(safe-area-inset-bottom));padding-left:max(clamp(0.7rem,2.6vw,2rem),env(safe-area-inset-left))}
 
@@ -512,8 +510,6 @@ body{font-family:var(--font-serif);color:#1d1e19;background:radial-gradient(120%
 .vertical-label{writing-mode:vertical-rl;font-size:0.54rem;letter-spacing:0.34em;text-transform:uppercase;color:rgba(240,230,210,0.45)}
 .rail-note{max-width:15ch;font-size:0.76rem;line-height:1.5;color:rgba(240,230,210,0.62)}
 .rail-head{font-size:0.52rem;letter-spacing:0.26em;text-transform:uppercase;color:rgba(240,230,210,0.5);font-family:var(--font-mono)}
-.tick:hover{color:#f8f1e0;background:rgba(231,201,138,0.1);transform:translateX(-3px)}
-.tick-past .stack-gauge{display:flex;gap:0.9rem}
 .gauge-col{display:grid;gap:0.3rem;justify-items:start}
 .gauge-cap{font-family:var(--font-mono);font-size:0.5rem;letter-spacing:0.2em;text-transform:uppercase;opacity:0.5}
 .gauge-stack{display:flex;flex-direction:column-reverse;gap:2px;min-height:34px}
@@ -777,7 +773,6 @@ body{font-family:var(--font-serif);color:#1d1e19;background:radial-gradient(120%
 
 /* present fullscreen */
 /* full-screen uses the full viewport as the book, not a boxed page */
-}
 /* ---- full-screen fill: keep shell as the viewport ---- */
 @supports (height:100dvh){.shell{min-height:100dvh}}
 /* ---- responsive: tablet + phone ---- */
@@ -865,7 +860,7 @@ body{font-family:var(--font-serif);color:#1d1e19;background:radial-gradient(120%
     var pctEl = document.getElementById("turned-pct");
     if(pctEl) pctEl.textContent = N<=1 ? "0%" : Math.round((idx / (N-1)) * 100) + "%";
     ribbon.style.top = (8 + (idx / Math.max(N-1,1)) * 66) + "%";
-    if(curlLabel) curlLabel.textContent = busy ? Math.round(p * 180) + "°" : "0°";
+    var curlLabel = document.getElementById("curl-label"); if(curlLabel) curlLabel.textContent = busy ? Math.round(p * 180) + "°" : "0°";
     if(leftCount) leftCount.innerHTML = "";
     // dynamic edges — use the current flip state, never a bare reference
     var cur = flipping;
@@ -878,7 +873,9 @@ body{font-family:var(--font-serif);color:#1d1e19;background:radial-gradient(120%
     if(rightCount) rightCount.innerHTML = "";
     if(leftCount){ for(var i=0;i<Math.min(lc,10);i++){ var e=document.createElement("i"); leftCount.appendChild(e); } }
     if(rightCount){ for(var i=0;i<Math.min(rc,10);i++){ var e=document.createElement("i"); rightCount.appendChild(e); } }
-      function renderFace(pg, verso){
+  }
+
+  function renderFace(pg, verso){
     if(!pg) return '<div class="face-blank"></div>';
     if(verso) return pg.verso;
     return pg.front;
